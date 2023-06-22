@@ -10,7 +10,7 @@ const scryptOptions = {
   r: 8,
   p: 1,
 };
-const secretKey = Buffer.from(process.env.SECRET_KEY, "base64");
+const secretKey = Buffer.from(process.env.SECRET_KEY || "12345", "base64");
 
 /**
  * Gets a randomized salt for a new password

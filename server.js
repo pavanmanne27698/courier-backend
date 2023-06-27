@@ -27,7 +27,7 @@ app.get("/", (req, res) => {
   res.json({ message: "Welcome to the Courier backend." });
 });
 
-require("./app/routes/auth.routes.js")(app);
+require("./app/routes/auth.routes")(app);
 require("./app/routes/user.routes")(app);
 
 // set port, listen for requests

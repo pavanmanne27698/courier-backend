@@ -8,19 +8,27 @@ const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
 exports.create = async (req, res) => {
   // Validate request
   if (req.body.firstName === undefined) {
-    const error = new Error("First name cannot be empty for user!");
+    const error = new Error("First name is empty!");
     error.statusCode = 400;
     throw error;
   } else if (req.body.lastName === undefined) {
-    const error = new Error("Last name cannot be empty for user!");
+    const error = new Error("Last name is empty!");
     error.statusCode = 400;
     throw error;
   } else if (req.body.email === undefined) {
-    const error = new Error("Email cannot be empty for user!");
+    const error = new Error("Email is empty!");
     error.statusCode = 400;
     throw error;
   } else if (req.body.password === undefined) {
-    const error = new Error("Password cannot be empty for user!");
+    const error = new Error("Password is empty!");
+    error.statusCode = 400;
+    throw error;
+  }  else if (req.body.mobile === undefined) {
+    const error = new Error("mobile is empty!");
+    error.statusCode = 400;
+    throw error;
+  }  else if (req.body.role === undefined) {
+    const error = new Error("role is empty!");
     error.statusCode = 400;
     throw error;
   }
@@ -33,7 +41,10 @@ exports.create = async (req, res) => {
   })
     .then(async (data) => {
       if (data) {
-        return "This email is already in use.";
+        res.status(500).send({
+          message:
+          "This email is already in use.",
+        });
       } else {
         console.log("email not found");
 
@@ -48,6 +59,9 @@ exports.create = async (req, res) => {
           email: req.body.email,
           password: hash,
           salt: salt,
+          mobile: req.body.mobile,
+          role: req.body.role || 3,
+          isAvailable: req.body.isAvailable || 0
         };
 
         // Save User in the database
@@ -73,6 +87,9 @@ exports.create = async (req, res) => {
                 lastName: user.lastName,
                 id: user.id,
                 token: token,
+                mobile: user.mobile,
+                role: user.role,
+                isAvailable: user.isAvailable
               };
               res.send(userInfo);
             });

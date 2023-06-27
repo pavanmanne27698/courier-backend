@@ -31,6 +31,9 @@ exports.login = async (req, res) => {
         lastName: user.lastName,
         id: user.id,
         token: token,
+        mobile: user.mobile,
+        role: user.role,
+        isAvailable: user.isAvailable
       };
       res.send(userInfo);
     });

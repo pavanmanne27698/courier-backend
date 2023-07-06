@@ -1,7 +1,7 @@
 const db_host = process.env.DB_HOST || "localhost";
 const db_pw = process.env.DB_PW || "pavan@0000";
 const db_user = process.env.DB_USER || "pavan";
-const db_name = process.env.DB_NAME || "online_courier";
+const db_name = process.env.DB_NAME || "ACME_COURIER";
 
 module.exports = {
   HOST: db_host,

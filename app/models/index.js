@@ -19,6 +19,7 @@ db.user = require("./user.model.js")(sequelize, Sequelize);
 db.customer = require("./customer.model.js")(sequelize, Sequelize);
 db.order = require("./order.model.js")(sequelize, Sequelize);
 db.orderDetails = require("./orderDetails.model.js")(sequelize, Sequelize);
+db.route = require("./route.model.js")(sequelize, Sequelize);
 
 // foreign key for session
 db.user.hasMany(
@@ -45,7 +46,7 @@ db.order.hasMany(db.orderDetails, {
     allowNull: false,
   },
   onDelete: 'CASCADE',
-  as: 'orderDetails', 
+  as: 'orderDetails', // Use the same alias as in the include statement
 });
 
 // Foreign key for User

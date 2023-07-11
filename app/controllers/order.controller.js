@@ -1,6 +1,5 @@
 const db = require("../models");
 const Order = db.order;
-const OrderDetails = db.orderDetails;
 const Customer = db.customer;
 const User = db.user;
 const Op = db.Sequelize.Op;
@@ -46,39 +45,30 @@ if (req.body.pickupTime === undefined || req.body.pickupTime == "") {
   const error = new Error("placedByUserId is empty!");
   error.statusCode = 400;
   throw error;
+} else if (req.body.companyId === undefined || req.body.companyId == "") {
+  const error = new Error("companyId is empty!");
+  error.statusCode = 400;
+  throw error;
 }
-req.body.status = "PENDING";
+req.body.status = "pending";
 req.body.completedTime = req.body.completedTime || null;
 // Save order in the database
 Order.create({
   timeForDelivery: req.body.timeForDelivery,
   distance: req.body.distance,
   cost: req.body.cost,
+  pickupLocation: req.body.pickupLocation,
+  deliveryLocation: req.body.deliveryLocation,
+  pickupTime: req.body.pickupTime,
+  completedTime: req.body.completedTime,
+  status: req.body.status,
+  placedByUserId: req.body.placedByUserId,
+  pickupCustomerId: req.body.pickupCustomerId,
+  deliveryCustomerId: req.body.deliveryCustomerId,
+  companyId: req.body.companyId
 })
   .then((order) => {
-    const orderDetail = {
-      pickupLocation: req.body.pickupLocation,
-      deliveryLocation: req.body.deliveryLocation,
-      pickupTime: req.body.pickupTime,
-      completedTime: req.body.completedTime,
-      status: req.body.status,
-      orderId: order.id,
-      placedByUserId: req.body.placedByUserId,
-      pickupCustomerId: req.body.pickupCustomerId,
-      deliveryCustomerId: req.body.deliveryCustomerId
-    };
-    OrderDetails.create(orderDetail)
-      .then((orderDetail) => {
-        res.send({
-          order,
-          orderDetail
-        });
-      })
-      .catch((err) => {
-        res.status(500).send({
-          message: err.message || "Internal Server error.",
-        });
-      });
+      res.send(order);
   })
   .catch((err) => {
     res.status(500).send({
@@ -171,6 +161,7 @@ async function findPath(source, destination) {
 // Retrieve all categories from the database.
 exports.findAll = (req, res) => {
   const orderId = req.query.orderId;
+  const companyId = req.query.companyId
   var condition = orderId
     ? {
         id: {
@@ -178,22 +169,13 @@ exports.findAll = (req, res) => {
         },
       }
     : null;
-
+  if (companyId !== undefined) {
+      condition.companyId = companyId;
+    }
     Order.findAll({
-      where: condition,
-      include: [
-        {
-          model: OrderDetails,
-          as: 'orderDetails',
-          include: [
-            { model: Customer, as: 'pickupCustomer' },
-            { model: Customer, as: 'deliveryCustomer' },
-            { model: User, as: 'placedByUser' },
-            { model: User, as: 'deliveryBoyUser' },
-          ],
-        },
-      ],
-    })
+        where: condition,
+        include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+      })
       .then((data) => {
         res.send(data);
       })
@@ -207,20 +189,8 @@ exports.findAll = (req, res) => {
 // Find a single order with an id
 exports.findOne = (req, res) => {
   const orderId = req.params.orderId;
-
   Order.findByPk(orderId, {
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
+    include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
   })
     .then((data) => {
       if (data) {
@@ -304,195 +274,90 @@ exports.deleteAll = (req, res) => {
 };
 
 
-exports.ordersByDeliveryBoy = (req,res) => {
+exports.ordersByDeliveryBoy = async(req,res) => {
   const id = req.params.id;
   const status = req.query.status;
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.deliveryBoyUserId$': id,
-    '$orderDetails.status$': status
+    deliveryBoyUserId: id,
+    status,
   };
-  Order.findAll({
-    where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
-  })    .then((data) => {
-      res.send(data);
-    })
-    .catch((err) => {
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving available delivery boys.",
-      });
-    });
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
 }
-exports.ordersDeliveredToCustomer = (req,res) => {
+exports.ordersDeliveredToCustomer = async(req,res) => {
   const id = req.params.id;
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.deliveryCustomerId$': id
+    deliveryCustomerId: id,
   };
-  Order.findAll({
-    where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
-  })     .then((data) => {
-      res.send(data);
-    })
-    .catch((err) => {
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving available delivery boys.",
-      });
-    });
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
 }
-exports.ordersPlacedByCustomer = (req,res) => {
+exports.ordersPlacedByCustomer = async(req,res) => {
   const id = req.params.id;
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.pickupCustomerId$': id
+    pickupCustomerId: id,
   };
-  Order.findAll({
-    where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
-  })    .then((data) => {
-      res.send(data);
-    })
-    .catch((err) => {
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving available delivery boys.",
-      });
-    });
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
 }
-exports.ordersPlacedByClerk = (req,res) => {
+exports.ordersPlacedByClerk = async(req,res) => {
   const id = req.params.id;
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.placedByUserId$': id
+    placedByUserId: id,
   };
-  Order.findAll({
-    where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
-  })    .then((data) => {
-      res.send(data);
-    })
-    .catch((err) => {
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving available delivery boys.",
-      });
-    });
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
 }
 
-exports.pendingOrders = (req,res) => {
+exports.pendingOrders = async(req,res) => {
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.status$': "PENDING"
+    status: "pending"
   };
-  Order.findAll({
-    where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
-  })    .then((data) => {
-      res.send(data);
-    })
-    .catch((err) => {
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving available delivery boys.",
-      });
-    });
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
 }
 
-exports.progressOrders = (req,res) => {
+exports.progressOrders = async(req,res) => {
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.status$': "PROGRESS"
+    status: "progress",
   };
-  Order.findAll({
-    where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
-  })    .then((data) => {
-      res.send(data);
-    })
-    .catch((err) => {
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving available delivery boys.",
-      });
-    });
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
 }
 
-exports.deliveredOrders = (req,res) => {
+exports.deliveredOrders = async(res) => {
+  const companyId = req.query.companyId;
   const condition = {
-    '$orderDetails.status$': "DELIVERED"
+    status: "delivered",
   };
+  if (companyId !== undefined) {
+    condition.companyId = companyId;
+  }
+  await getOrders(condition,res)
+}
+
+const getOrders = (condition,res) => {
   Order.findAll({
     where: condition,
-    include: [
-      {
-        model: OrderDetails,
-        as: 'orderDetails',
-        include: [
-          { model: Customer, as: 'pickupCustomer' },
-          { model: Customer, as: 'deliveryCustomer' },
-          { model: User, as: 'placedByUser' },
-          { model: User, as: 'deliveryBoyUser' },
-        ],
-      },
-    ],
+    include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
   })    .then((data) => {
       res.send(data);
     })

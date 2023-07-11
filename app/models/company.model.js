@@ -1,35 +1,26 @@
 module.exports = (sequelize, Sequelize) => {
-    const Order = sequelize.define("order_detail", {
+    const Company = sequelize.define("company", {
         id:{
             type: Sequelize.INTEGER,
             autoIncrement: true,
             primaryKey: true
         },
-        pickupLocation: {
+        name: {
             type: Sequelize.STRING,
             allowNull: false,
         },
-        deliveryLocation: {
+        location: {
             type: Sequelize.STRING,
             allowNull: false,
         },
-        pickupTime: {
-            type: Sequelize.STRING,
-            allowNull: false,
-        },
-        completedTime: {
-            type: Sequelize.DATE,
-            allowNull: true,
-        },
-        status: {
+        email: {
             type: Sequelize.STRING,
             allowNull: false,
         }
     },
     {
-     timestamps: true, 
+        timestamps: false, 
     }
     );
-  
-    return Order;
+    return Company;
   };

@@ -18,8 +18,8 @@ db.session = require("./session.model.js")(sequelize, Sequelize);
 db.user = require("./user.model.js")(sequelize, Sequelize);
 db.customer = require("./customer.model.js")(sequelize, Sequelize);
 db.order = require("./order.model.js")(sequelize, Sequelize);
-db.orderDetails = require("./orderDetails.model.js")(sequelize, Sequelize);
 db.route = require("./route.model.js")(sequelize, Sequelize);
+db.company = require("./company.model.js")(sequelize, Sequelize);
 
 // foreign key for session
 db.user.hasMany(
@@ -33,69 +33,80 @@ db.session.belongsTo(
   { foreignKey: { allowNull: false }, onDelete: "CASCADE" }
 );
 
-// Foreign key for Order
-db.orderDetails.belongsTo(db.order, {
-  foreignKey: 'orderId',
-  as: 'order', // Use the same alias as in the include statement
-  onDelete: 'CASCADE',
-},
-);
-db.order.hasMany(db.orderDetails, {
+//foreign key for company
+db.company.hasMany(db.user, {
   foreignKey: {
-    name: 'orderId',
-    allowNull: false,
+    name: 'companyId',
+    allowNull: true,
   },
   onDelete: 'CASCADE',
-  as: 'orderDetails', // Use the same alias as in the include statement
+});
+db.user.belongsTo(db.company, {
+  foreignKey: 'companyId',
+  as: 'companyDetails',
+  onDelete: 'CASCADE',
+});
+db.company.hasMany(db.order, {
+  foreignKey: {
+    name: 'companyId',
+    allowNull: true,
+  },
+  onDelete: 'CASCADE',
+});
+db.order.belongsTo(db.company, {
+  foreignKey: 'companyId',
+  as: 'companyDetails',
+  onDelete: 'CASCADE',
 });
 
+
 // Foreign key for User
-db.user.hasMany(db.orderDetails, {
+db.user.hasMany(db.order, {
   foreignKey: {
     name: 'placedByUserId',
     allowNull: false,
   },
   onDelete: 'CASCADE',
 });
-db.user.hasMany(db.orderDetails, {
+db.user.hasMany(db.order, {
   foreignKey: {
     name: 'deliveryBoyUserId',
     allowNull: true,
   },
   onDelete: 'CASCADE',
 });
-db.orderDetails.belongsTo(db.user, {
+db.order.belongsTo(db.user, {
   foreignKey: 'placedByUserId',
   as: 'placedByUser',
   onDelete: 'CASCADE',
 });
-db.orderDetails.belongsTo(db.user, {
+db.order.belongsTo(db.user, {
   foreignKey: 'deliveryBoyUserId',
   as: 'deliveryBoyUser',
   onDelete: 'CASCADE',
 });
 
 // Foreign key for Customer
-db.customer.hasMany(db.orderDetails, {
+db.customer.hasMany(db.order, {
   foreignKey: {
     name: 'pickupCustomerId',
     allowNull: true,
   },
   onDelete: 'CASCADE',
 });
-db.customer.hasMany(db.orderDetails, {
+db.customer.hasMany(db.order, {
   foreignKey: {
     name: 'deliveryCustomerId',
     allowNull: true,
   },
   onDelete: 'CASCADE',
 });
-db.orderDetails.belongsTo(db.customer, {
+db.order.belongsTo(db.customer, {
   foreignKey: 'pickupCustomerId',
   as: 'pickupCustomer',
   onDelete: 'CASCADE',
 });
-db.orderDetails.belongsTo(db.customer, {
+db.order.belongsTo(db.customer, {
   foreignKey: 'deliveryCustomerId',
   as: 'deliveryCustomer',
   onDelete: 'CASCADE',

@@ -1,6 +1,5 @@
 module.exports = (app) => {
   const User = require("../controllers/user.controller.js");
-  const { authenticateRoute } = require("../authentication/authentication");
   var router = require("express").Router();
   router.post("/users/", User.create);
   router.get("/users/", User.findAll);

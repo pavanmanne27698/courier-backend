@@ -33,7 +33,8 @@ exports.login = async (req, res) => {
         token: token,
         mobile: user.mobile,
         role: user.role,
-        isAvailable: user.isAvailable
+        isAvailable: user.isAvailable,
+        companyId: user.companyId
       };
       res.send(userInfo);
     });

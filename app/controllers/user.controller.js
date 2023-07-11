@@ -6,6 +6,7 @@ const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
 
 // Create and Save a new User
 exports.create = async (req, res) => {
+  try {
   // Validate request
   if (req.body.firstName === undefined) {
     const error = new Error("First name is empty!");
@@ -29,6 +30,10 @@ exports.create = async (req, res) => {
     throw error;
   }  else if (req.body.role === undefined) {
     const error = new Error("role is empty!");
+    error.statusCode = 400;
+    throw error;
+  }   else if (req.body.companyId === undefined) {
+    const error = new Error("companyId is empty!");
     error.statusCode = 400;
     throw error;
   }
@@ -61,7 +66,8 @@ exports.create = async (req, res) => {
           salt: salt,
           mobile: req.body.mobile,
           role: req.body.role || 3,
-          isAvailable: req.body.isAvailable || 0
+          isAvailable: req.body.isAvailable || 0,
+          companyId: req.body.companyId || 1
         };
 
         // Save User in the database
@@ -89,7 +95,8 @@ exports.create = async (req, res) => {
                 token: token,
                 mobile: user.mobile,
                 role: user.role,
-                isAvailable: user.isAvailable
+                isAvailable: user.isAvailable,
+                companyId: user.companyId
               };
               res.send(userInfo);
             });
@@ -106,12 +113,29 @@ exports.create = async (req, res) => {
     .catch((err) => {
       return err.message || "Error retrieving User with email=" + email;
     });
+  }
+  catch(e) {
+    res.status(500).send({
+      message:
+        e.message || "Some error occurred while creating the User.",
+    });
+  }
 };
 
 // Retrieve all Users from the database.
 exports.findAll = (req, res) => {
   const id = req.query.id;
-  var condition = id ? { id: { [Op.like]: `%${id}%` } } : null;
+  const companyId = req.query.companyId;
+  var condition = id
+    ? {
+        id: {
+          [Op.like]: `%${id}%`,
+        },
+      }
+    : null;
+  if (companyId !== undefined) {
+      condition.companyId = companyId;
+  }
 
   User.findAll({ where: condition })
     .then((data) => {

@@ -64,7 +64,7 @@ db.order.belongsTo(db.company, {
 db.user.hasMany(db.order, {
   foreignKey: {
     name: 'placedByUserId',
-    allowNull: false,
+    allowNull: true,
   },
   onDelete: 'CASCADE',
 });

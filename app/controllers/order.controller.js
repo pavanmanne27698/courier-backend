@@ -39,10 +39,6 @@ if (req.body.pickupDateTime === undefined || req.body.pickupDateTime == "") {
   const error = new Error("timeForDelivery is empty!");
   error.statusCode = 400;
   throw error;
-} else if (req.body.placedByUserId === undefined || req.body.placedByUserId == "") {
-  const error = new Error("placedByUserId is empty!");
-  error.statusCode = 400;
-  throw error;
 } else if (req.body.companyId === undefined || req.body.companyId == "") {
   const error = new Error("companyId is empty!");
   error.statusCode = 400;

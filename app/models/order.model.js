@@ -25,18 +25,30 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING,
             allowNull: false,
         },
-        pickupTime: {
-            type: Sequelize.STRING,
-            allowNull: false,
-        },
-        completedTime: {
-            type: Sequelize.DATE,
-            allowNull: true,
-        },
         status: {
             type: Sequelize.STRING,
             allowNull: false,
-        }
+        },
+        pickupDateTime: {
+            type: Sequelize.DATE,
+            allowNull: false,
+        },
+        deliveredDateTime: {
+            type: Sequelize.DATE,
+            allowNull: true,
+        },
+        pickedupDateTime: {
+            type: Sequelize.DATE,
+            allowNull: true,     
+        },
+        isDeliveredInTime: {
+            type: Sequelize.BOOLEAN,
+            allowNull: true, 
+        },
+        deliveryBoyPoints: {
+            type: Sequelize.STRING,
+            allowNull: true,
+        },
     },
     {
      timestamps: true, 

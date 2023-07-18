@@ -2,12 +2,15 @@ module.exports = (app) => {
   const Order = require("../controllers/order.controller.js");
   var router = require("express").Router();
   router.post("/orders/", Order.create);
+  router.get("/orders/picked/:id", Order.pickedup);
+  router.get("/orders/delivered/:id", Order.delivered);
   router.get("/ordersByDeliveryBoy/:id", Order.ordersByDeliveryBoy);
   router.get("/ordersPlacedByClerk/:id", Order.ordersPlacedByClerk);
+  router.post("/orderpicked/:id", Order.pickedup);
+  router.post("/orderdelivered/:id", Order.delivered);
   router.get("/deliveredOrders", Order.deliveredOrders);
   router.get("/pendingOrders", Order.pendingOrders);
   router.get("/progressOrders", Order.progressOrders);
-  router.get("/ordersDeliveredToCustomer/:id", Order.ordersDeliveredToCustomer);
   router.get("/ordersPlacedByCustomer/:id", Order.ordersPlacedByCustomer);
   router.post("/orders/getDetails", Order.getDetailsForOrder);
   router.get("/orders/", Order.findAll);

@@ -4,21 +4,19 @@ const Customer = db.customer;
 const User = db.user;
 const Op = db.Sequelize.Op;
 const Route = db.route;
+const nodemailer = require('nodemailer');
+const Sequelize = db.Sequelize;
 
 // Create and Save a new order
 exports.create = (req, res) => {
   try {
   // Validate request
-if (req.body.pickupTime === undefined || req.body.pickupTime == "") {
+if (req.body.pickupDateTime === undefined || req.body.pickupDateTime == "") {
   const error = new Error("pickup time is empty!");
   error.statusCode = 400;
   throw error;
 } else if (req.body.pickupCustomerId === undefined || req.body.pickupCustomerId == "") {
   const error = new Error("pickup customer id is empty!");
-  error.statusCode = 400;
-  throw error;
-} else if (req.body.deliveryCustomerId === undefined ||  req.body.deliveryCustomerId == "") {
-  const error = new Error("delivery customer id is empty!");
   error.statusCode = 400;
   throw error;
 } else if (req.body.pickupLocation === undefined ||  req.body.pickupLocation == "") {
@@ -51,7 +49,6 @@ if (req.body.pickupTime === undefined || req.body.pickupTime == "") {
   throw error;
 }
 req.body.status = "pending";
-req.body.completedTime = req.body.completedTime || null;
 // Save order in the database
 Order.create({
   timeForDelivery: req.body.timeForDelivery,
@@ -59,16 +56,15 @@ Order.create({
   cost: req.body.cost,
   pickupLocation: req.body.pickupLocation,
   deliveryLocation: req.body.deliveryLocation,
-  pickupTime: req.body.pickupTime,
-  completedTime: req.body.completedTime,
+  pickupDateTime: req.body.pickupDateTime,
   status: req.body.status,
   placedByUserId: req.body.placedByUserId,
   pickupCustomerId: req.body.pickupCustomerId,
-  deliveryCustomerId: req.body.deliveryCustomerId,
   companyId: req.body.companyId
 })
   .then((order) => {
       res.send(order);
+      sendMail(order,"Thank you for placing your order.")
   })
   .catch((err) => {
     res.status(500).send({
@@ -174,7 +170,7 @@ exports.findAll = (req, res) => {
     }
     Order.findAll({
         where: condition,
-        include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+        include: [  { model: Customer, as: 'pickupCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
       })
       .then((data) => {
         res.send(data);
@@ -190,7 +186,7 @@ exports.findAll = (req, res) => {
 exports.findOne = (req, res) => {
   const orderId = req.params.orderId;
   Order.findByPk(orderId, {
-    include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+    include: [  { model: Customer, as: 'pickupCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
   })
     .then((data) => {
       if (data) {
@@ -276,28 +272,16 @@ exports.deleteAll = (req, res) => {
 
 exports.ordersByDeliveryBoy = async(req,res) => {
   const id = req.params.id;
-  const status = req.query.status;
   const companyId = req.query.companyId;
   const condition = {
     deliveryBoyUserId: id,
-    status,
   };
   if (companyId !== undefined) {
     condition.companyId = companyId;
   }
   await getOrders(condition,res)
 }
-exports.ordersDeliveredToCustomer = async(req,res) => {
-  const id = req.params.id;
-  const companyId = req.query.companyId;
-  const condition = {
-    deliveryCustomerId: id,
-  };
-  if (companyId !== undefined) {
-    condition.companyId = companyId;
-  }
-  await getOrders(condition,res)
-}
+
 exports.ordersPlacedByCustomer = async(req,res) => {
   const id = req.params.id;
   const companyId = req.query.companyId;
@@ -357,7 +341,7 @@ exports.deliveredOrders = async(res) => {
 const getOrders = (condition,res) => {
   Order.findAll({
     where: condition,
-    include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+    include: [  { model: Customer, as: 'pickupCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
   })    .then((data) => {
       res.send(data);
     })
@@ -366,4 +350,119 @@ const getOrders = (condition,res) => {
         message: err.message || "Some error occurred while retrieving available delivery boys.",
       });
     });
+}
+
+exports.pickedup  = async(req, res) => {
+  try{
+  const id = req.params.id;
+  const order = await Order.findByPk(id)
+  const updatedData = {
+    pickedupDateTime: Sequelize.literal('CURRENT_TIMESTAMP'),
+    status:"progress"
+  }
+  Order.update(updatedData, {
+    where: { id: id },
+  })
+    .then((response) => {
+      if (response == 1) {
+        res.send({
+          message: "order was updated successfully.",
+        });
+        sendMail(order,"Your Order is pickedup just now.")
+      } else {
+        res.send({
+          message: `Cannot update order with id=${id}. Maybe order was not found or req.body is empty!`,
+        });
+      }
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Error updating order with id=" + id,
+      });
+    });
+  }
+  catch(e) {
+    res.status(500).send({
+      message: e.message || "Error updating order with id=" + id,
+    });
+  }
+};
+
+function checkDeliveredInTime(pickedupTime, timeTakesForDelivery) {
+  const currentTime = new Date();
+  const pickTime = new Date(pickedupTime);
+  const timeDifference = currentTime - pickTime;
+  const minutesDifference = Math.floor(timeDifference / 1000 / 60); // Convert milliseconds to minutes
+
+  return minutesDifference <= timeTakesForDelivery;
+}
+
+exports.delivered  = async(req, res) => {
+  try {
+  const id = req.params.id;
+  const order  = await Order.findByPk(id)
+  const current_time = new Date();
+  const deliveredInTime = checkDeliveredInTime(order.pickedupDateTime,current_time,order.timeForDelivery)
+  const updatedData = {
+    deliveredDateTime: Sequelize.literal('CURRENT_TIMESTAMP'),
+    status:"delivered",
+    isDeliveredInTime: deliveredInTime ? 1 : 0,
+    deliveryBoyPoints : deliveredInTime ? 10 : 0
+  }
+  Order.update(updatedData, {
+    where: { id: id },
+  })
+    .then((response) => {
+      if (response == 1) {
+        res.send({
+          message: "order was updated successfully.",
+        });
+        sendMail(order,"Your Order is delivered just now.")
+      } else {
+        res.send({
+          message: `Cannot update order with id=${id}. Maybe order was not found or req.body is empty!`,
+        });
+      }
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Error updating order with id=" + id,
+      });
+    });
+  }
+  catch(e) {
+    res.status(500).send({
+      message: e.message || "Error updating order with id=" + id,
+    });
+  }
+};
+
+const sendMail = async(data,text) => {
+  const customer = await Customer.findByPk(data.pickupCustomerId);
+
+  // Create a transporter object
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'email',
+      pass: 'password'
+    }
+  });
+
+  // Define the email options
+  const mailOptions = {
+    from: 'email',
+    to: customer.email,
+    subject: "ACME COURIERS",
+    text
+  };
+
+  // Send the email
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log('Error sending email:', error);
+    } else {
+      console.log('Email sent successfully:', info.response);
+    }
+  });
 }

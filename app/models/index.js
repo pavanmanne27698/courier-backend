@@ -94,21 +94,9 @@ db.customer.hasMany(db.order, {
   },
   onDelete: 'CASCADE',
 });
-db.customer.hasMany(db.order, {
-  foreignKey: {
-    name: 'deliveryCustomerId',
-    allowNull: true,
-  },
-  onDelete: 'CASCADE',
-});
 db.order.belongsTo(db.customer, {
   foreignKey: 'pickupCustomerId',
   as: 'pickupCustomer',
-  onDelete: 'CASCADE',
-});
-db.order.belongsTo(db.customer, {
-  foreignKey: 'deliveryCustomerId',
-  as: 'deliveryCustomer',
   onDelete: 'CASCADE',
 });
 

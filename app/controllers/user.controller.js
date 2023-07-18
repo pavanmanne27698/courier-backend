@@ -150,7 +150,53 @@ exports.findAll = (req, res) => {
 
 exports.findAllAvailableUsers = (req, res) => {
   const role = req.query.id;
-  var condition = role ? { role, isAvailable: 1 } : null;
+  var condition = {
+    isAvailable: 1
+  }
+  if(role) {
+    condition["role"] = role
+  }
+  User.findAll({ where: condition })
+    .then((data) => {
+      res.send(data);
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Some error occurred while retrieving users.",
+      });
+    });
+};
+
+exports.findAllAdmins = (req, res) => {
+  var condition = { role:1 };
+
+  User.findAll({ where: condition })
+    .then((data) => {
+      res.send(data);
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Some error occurred while retrieving users.",
+      });
+    });
+};
+
+exports.findAllClerks = (req, res) => {
+  var condition = { role:2 };
+
+  User.findAll({ where: condition })
+    .then((data) => {
+      res.send(data);
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Some error occurred while retrieving users.",
+      });
+    });
+};
+
+exports.findAllDeliveryBoys = (req, res) => {
+  var condition = { role:3 };
 
   User.findAll({ where: condition })
     .then((data) => {

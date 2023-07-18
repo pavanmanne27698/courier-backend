@@ -4,6 +4,9 @@ module.exports = (app) => {
   router.post("/users/", User.create);
   router.get("/users/", User.findAll);
   router.get('/users/available', User.findAllAvailableUsers);
+  router.get("users/admins",User.findAllAdmins);
+  router.get("users/clerks",User.findAllClerks);
+  router.get("users/deliveryBoys",User.findAllDeliveryBoys);
   router.get("/users/:id", User.findOne);
   router.put("/users/:id", User.update);
   router.delete("/users/:id", User.delete);

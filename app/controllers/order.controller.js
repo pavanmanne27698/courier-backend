@@ -56,6 +56,7 @@ Order.create({
   status: req.body.status,
   placedByUserId: req.body.placedByUserId,
   pickupCustomerId: req.body.pickupCustomerId,
+  deliveryCustomerId: req.body.deliveryCustomerId,
   companyId: req.body.companyId
 })
   .then((order) => {
@@ -88,9 +89,12 @@ exports.getDetailsForOrder = async(req, res) => {
       throw error;
     }
     const distance = await findPath(req.body.pickupLocation,req.body.deliveryLocation)
+    const detailedDistance = await findOverAllPath(req.body.pickupLocation,req.body.deliveryLocation)
+
     if(distance) {
       res.send({
-        distance: distance
+        distance,
+        detailedDistance: detailedDistance
       });
     }
     else {
@@ -104,8 +108,18 @@ exports.getDetailsForOrder = async(req, res) => {
       message: e.message ||  "Error in calculating distance" ,
     });
   }
-  
 };
+
+async function findOverAllPath(source,destination) {
+  const fromOfficeToPickup = await findPath("3C",source);
+  const fromPickupToDelivery = await findPath(source,destination);
+  const returnToOffice = await findPath(destination,"3C");
+  return {
+    fromOfficeToPickup,
+    fromPickupToDelivery,
+    returnToOffice
+  }
+}
 
 async function findPath(source, destination) {
   const data = await Route.findAll();
@@ -146,7 +160,6 @@ async function findPath(source, destination) {
       }
     });
   }
-  console.log("dis",distances)
   return distances[destination];
 }
 
@@ -166,7 +179,7 @@ exports.findAll = (req, res) => {
     }
     Order.findAll({
         where: condition,
-        include: [  { model: Customer, as: 'pickupCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+        include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
       })
       .then((data) => {
         res.send(data);
@@ -182,7 +195,7 @@ exports.findAll = (req, res) => {
 exports.findOne = (req, res) => {
   const orderId = req.params.orderId;
   Order.findByPk(orderId, {
-    include: [  { model: Customer, as: 'pickupCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+    include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
   })
     .then((data) => {
       if (data) {
@@ -337,7 +350,7 @@ exports.deliveredOrders = async(res) => {
 const getOrders = (condition,res) => {
   Order.findAll({
     where: condition,
-    include: [  { model: Customer, as: 'pickupCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
+    include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
   })    .then((data) => {
       res.send(data);
     })
@@ -434,31 +447,31 @@ exports.delivered  = async(req, res) => {
 };
 
 const sendMail = async(data,text) => {
-  const customer = await Customer.findByPk(data.pickupCustomerId);
+  // const customer = await Customer.findByPk(data.pickupCustomerId);
 
-  // Create a transporter object
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'email',
-      pass: 'password'
-    }
-  });
+  // // Create a transporter object
+  // const transporter = nodemailer.createTransport({
+  //   service: 'gmail',
+  //   auth: {
+  //     user: 'email',
+  //     pass: 'password'
+  //   }
+  // });
 
-  // Define the email options
-  const mailOptions = {
-    from: 'email',
-    to: customer.email,
-    subject: "ACME COURIERS",
-    text
-  };
+  // // Define the email options
+  // const mailOptions = {
+  //   from: 'email',
+  //   to: customer.email,
+  //   subject: "ACME COURIERS",
+  //   text
+  // };
 
-  // Send the email
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.log('Error sending email:', error);
-    } else {
-      console.log('Email sent successfully:', info.response);
-    }
-  });
+  // // Send the email
+  // transporter.sendMail(mailOptions, (error, info) => {
+  //   if (error) {
+  //     console.log('Error sending email:', error);
+  //   } else {
+  //     console.log('Email sent successfully:', info.response);
+  //   }
+  // });
 }

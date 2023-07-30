@@ -2,6 +2,7 @@ module.exports = (app) => {
   const Order = require("../controllers/order.controller.js");
   var router = require("express").Router();
   router.post("/orders/", Order.create);
+  router.post("/orders/route", Order.findRoute);
   router.get("/orders/picked/:id", Order.pickedup);
   router.get("/orders/delivered/:id", Order.delivered);
   router.get("/ordersByDeliveryBoy/:id", Order.ordersByDeliveryBoy);

@@ -2,6 +2,7 @@ const db = require("../models");
 const Order = db.order;
 const Customer = db.customer;
 const User = db.user;
+const Company = db.company;
 const Op = db.Sequelize.Op;
 const Route = db.route;
 const nodemailer = require('nodemailer');
@@ -89,7 +90,7 @@ exports.getDetailsForOrder = async(req, res) => {
       throw error;
     }
     const distance = await findPath(req.body.pickupLocation,req.body.deliveryLocation)
-    const detailedDistance = await findOverAllPath(req.body.pickupLocation,req.body.deliveryLocation)
+    const detailedDistance = await findOverAllPath(req.body.pickupLocation,req.body.deliveryLocation,req.body.companyId)
 
     if(distance) {
       res.send({
@@ -110,16 +111,36 @@ exports.getDetailsForOrder = async(req, res) => {
   }
 };
 
-async function findOverAllPath(source,destination) {
-  const fromOfficeToPickup = await findPath("3C",source);
+async function findOverAllPath(source,destination,companyId) {
+  const company = await Company.findByPk(companyId)
+  const fromOfficeToPickup = await findPath(extractLocationCode(company.location),source);
   const fromPickupToDelivery = await findPath(source,destination);
-  const returnToOffice = await findPath(destination,"3C");
+  const returnToOffice = await findPath(destination,extractLocationCode(company.location));
   return {
     fromOfficeToPickup,
     fromPickupToDelivery,
     returnToOffice
   }
 }
+
+function extractLocationCode(location) {
+  // Split the location string by commas and spaces
+  const locationParts = location.trim().split(/, +/);
+  const firstPart = locationParts[0].split(' ')[1]; // Assuming "Street Y" is the first part
+  const secondPart = locationParts[1]; // Assuming "Avenue Z" is always the second part
+
+  // Extract the first letter from the first part
+  const firstLetter = firstPart.charAt(0);
+
+  // Extract the first letter from the second part
+  const secondLetter = secondPart.split(' ')[1].charAt(0);
+
+  // Combine the first letter from the first part and the first letter from the second part
+  const locationCode = firstLetter + secondLetter;
+
+  return locationCode;
+}
+
 
 async function findPath(source, destination) {
   const data = await Route.findAll();
@@ -181,8 +202,24 @@ exports.findAll = (req, res) => {
         where: condition,
         include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
       })
-      .then((data) => {
-        res.send(data);
+      .then(async(data) => {
+        const company = await Company.findByPk(data.companyId || 1)
+        const dist = await findPath(data.pickupLocation,data.deliveryLocation);
+        if(dist){
+          const one = await find_route(extractLocationCode(company.location),data.pickupLocation);
+          const two = await find_route(data.pickupLocation,data.deliveryLocation);
+          const thre = await find_route(data.deliveryLocation,extractLocationCode(company.location));
+          const path= {
+            one,two,thre
+          }
+          const newData = {
+            ...data,
+            path
+          }
+          res.send(newData);
+        } else {
+          res.send(data);
+        }
       })
       .catch((err) => {
         res.status(500).send({
@@ -445,7 +482,44 @@ exports.delivered  = async(req, res) => {
     });
   }
 };
-
+exports.findRoute = async(req,res) => {
+  try {
+    // Validate request
+    if (req.body.pickup_address === undefined) {
+      const error = new Error("pickup_customer_id cannot be empty for order!");
+      error.statusCode = 400;
+      throw error;
+    } else if (req.body.delivery_address === undefined) {
+      const error = new Error("delivery_customer_id cannot be empty for order!");
+      error.statusCode = 400;
+      throw error;
+    }
+    const company = await Company.findByPk(req.body.companyId || 1)
+    const dist = await findPath(req.body.pickup_address,req.body.delivery_address);
+    if(dist){
+      const officeToSource = await find_route(extractLocationCode(company.location),req.body.pickup_address);
+      const sourceToDestination = await find_route(req.body.pickup_address,req.body.delivery_address);
+      const destinationToOffice = await find_route(req.body.delivery_address,extractLocationCode(company.location));
+  
+      res.send({
+        officeToSource,
+        sourceToDestination,
+        destinationToOffice
+      })
+    } else {
+      res.status(500).send({
+        message: "Error in finding path",
+      })
+    }
+   
+  }
+  catch(e) {
+    res.status(500).send({
+      message: "Error in finding path",
+    });
+  }
+  
+}
 const sendMail = async(data,text) => {
   // const customer = await Customer.findByPk(data.pickupCustomerId);
 
@@ -474,4 +548,69 @@ const sendMail = async(data,text) => {
   //     console.log('Email sent successfully:', info.response);
   //   }
   // });
+}
+
+// Function to find the shortest path using Dijkstra's algorithm
+async function find_route(source, destination) {
+  // Retrieve all data from the Route table
+  const allRouteData = await Route.findAll();
+
+  // Form the graph using the retrieved data
+  const graph = {};
+  allRouteData.forEach((entry) => {
+    const { source, destination } = entry;
+    if (!graph[source]) {
+      graph[source] = {};
+    }
+    graph[source][destination] = 1;
+  });
+
+  // Initialize distance, visited, and previous arrays
+  const distances = {};
+  const visited = {};
+  const previous = {};
+
+  // Initialize distances with Infinity and set source distance to 0
+  Object.keys(graph).forEach((vertex) => {
+    distances[vertex] = Infinity;
+  });
+  distances[source] = 0;
+
+  while (true) {
+    let closestVertex = null;
+    let closestDistance = Infinity;
+
+    // Find the closest unvisited vertex
+    Object.keys(graph).forEach((vertex) => {
+      if (!visited[vertex] && distances[vertex] < closestDistance) {
+        closestVertex = vertex;
+        closestDistance = distances[vertex];
+      }
+    });
+
+    if (closestVertex === null) {
+      break; // No reachable vertices left
+    }
+
+    // Mark the closest vertex as visited
+    visited[closestVertex] = true;
+
+    // Update distances to its neighbors
+    Object.keys(graph[closestVertex]).forEach((neighbor) => {
+      const distance = closestDistance + graph[closestVertex][neighbor];
+      if (distance < distances[neighbor]) {
+        distances[neighbor] = distance;
+        previous[neighbor] = closestVertex;
+      }
+    });
+  }
+
+  // Reconstruct the shortest path
+  const path = [destination];
+  let current = destination;
+  while (current !== source) {
+    current = previous[current];
+    path.unshift(current);
+  }
+  return path;
 }

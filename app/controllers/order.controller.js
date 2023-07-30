@@ -199,33 +199,48 @@ exports.findAll = (req, res) => {
       condition.companyId = companyId;
     }
     Order.findAll({
-        where: condition,
-        include: [  { model: Customer, as: 'pickupCustomer' },{ model: Customer, as: 'deliveryCustomer' },{ model: User, as: 'deliveryBoyUser' },{ model: User, as: 'placedByUser' }]
-      })
-      .then(async(data) => {
-        const company = await Company.findByPk(data.companyId || 1)
-        const dist = await findPath(extractLocationCode(data.pickupLocation),extractLocationCode(data.deliveryLocation));
-        if(dist){
-          const one = await find_route(extractLocationCode(company.location),extractLocationCode(data.pickupLocation));
-          const two = await find_route(extractLocationCode(data.pickupLocation),extractLocationCode(data.deliveryLocation));
-          const thre = await find_route(extractLocationCode(data.deliveryLocation),extractLocationCode(company.location));
-          const path= {
-            one,two,thre
-          }
-          const newData = {
-            ...data,
-            path
-          }
-          res.send(newData);
-        } else {
-          res.send(data);
-        }
+      where: condition,
+      include: [
+        { model: Customer, as: 'pickupCustomer' },
+        { model: Customer, as: 'deliveryCustomer' },
+        { model: User, as: 'deliveryBoyUser' },
+        { model: User, as: 'placedByUser' }
+      ]
+    })
+      .then(async (data) => {
+        const dataWithPaths = await Promise.all(
+          data.map(async (temp) => {
+            const order = temp.dataValues; // Extract the actual order data from Sequelize object
+            const company = await Company.findByPk(order.companyId || 1);
+            const dist = await findPath(extractLocationCode(order.pickupLocation), extractLocationCode(order.deliveryLocation));
+    
+            if (dist) {
+              const one = await find_route(extractLocationCode(company.location), extractLocationCode(order.pickupLocation));
+              const two = await find_route(extractLocationCode(order.pickupLocation), extractLocationCode(order.deliveryLocation));
+              const thre = await find_route(extractLocationCode(order.deliveryLocation), extractLocationCode(company.location));
+              const path = {
+                one,
+                two,
+                thre
+              };
+    
+              const newData = {
+                ...order,
+                path
+              };
+              return newData;
+            } else {
+              return order;
+            }
+          })
+        );
+        res.send(dataWithPaths); // Send the dataWithPaths as the response
       })
       .catch((err) => {
         res.status(500).send({
           message: err.message || 'Internal Server error.',
         });
-      });
+      });    
 };
 
 // Find a single order with an id

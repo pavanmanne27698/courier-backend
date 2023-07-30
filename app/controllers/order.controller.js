@@ -204,7 +204,7 @@ exports.findAll = (req, res) => {
       })
       .then(async(data) => {
         const company = await Company.findByPk(data.companyId || 1)
-        const dist = await findPath(data.pickupLocation,data.deliveryLocation);
+        const dist = await findPath(extractLocationCode(data.pickupLocation),extractLocationCode(data.deliveryLocation));
         if(dist){
           const one = await find_route(extractLocationCode(company.location),extractLocationCode(data.pickupLocation));
           const two = await find_route(extractLocationCode(data.pickupLocation),extractLocationCode(data.deliveryLocation));

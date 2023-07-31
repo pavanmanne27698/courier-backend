@@ -57,6 +57,7 @@ Order.create({
   status: req.body.status,
   placedByUserId: req.body.placedByUserId,
   pickupCustomerId: req.body.pickupCustomerId,
+  deliveryBoyUserId: req.body.deliveryBoyUserId || null,
   deliveryCustomerId: req.body.deliveryCustomerId,
   companyId: req.body.companyId
 })

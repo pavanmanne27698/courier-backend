@@ -93,10 +93,10 @@ exports.getLastWeekReport = async () => {
         status: 'DELIVERED',
     },
     attributes: [
-        [db.sequelize.fn('DATE', db.sequelize.col('delivered_at')), 'date'],
+        [db.sequelize.fn('DATE', db.sequelize.col('deliveredDateTime')), 'date'],
         [db.sequelize.fn('COUNT', '*'), 'count'],
     ],
-    group: [db.sequelize.fn('DATE', db.sequelize.col('delivered_at'))],
+    group: [db.sequelize.fn('DATE', db.sequelize.col('deliveredDateTime'))],
     raw: true,
     });
 
